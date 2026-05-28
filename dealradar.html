@@ -269,6 +269,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size
     <div class="srow"><span class="srlabel">Análises hoje</span><span class="srval" id="sv-use">0 / 3</span></div>
     <div class="srow"><span class="srlabel">Device ID</span><span class="srval" id="sv-did" style="font-size:11px">—</span></div>
     <button class="shbtn sec" onclick="closeSet()">Fechar</button>
+    <button class="shbtn sec" onclick="resetLimit()" style="background:var(--adim);color:var(--accent);border:1px solid rgba(0,229,160,.2);margin-top:8px">↺ Reiniciar contador de análises</button>
     <button class="shbtn danger" onclick="resetApp()">Redefinir app</button>
   </div>
 </div>
@@ -373,7 +374,7 @@ async function startApp() {
 }
 
 function startDemo() {
-  S.demo = true; S.backendUrl = ''; S.remaining = 3; S.limit = 3;
+  S.demo = true; S.backendUrl = ''; S.remaining = 10; S.limit = 10;
   save(); showApp(); loadDemoFeed();
 }
 
@@ -787,6 +788,12 @@ function animSteps() {
 function openSet()  { document.getElementById('setpanel').classList.add('on'); }
 function closeSet() { document.getElementById('setpanel').classList.remove('on'); }
 function closeSetOut(e) { if (e.target === document.getElementById('setpanel')) closeSet(); }
+function resetLimit() {
+  S.remaining = S.limit;
+  save(); updateUI(); closeSet();
+  showToast("✅ " + S.limit + " análises disponíveis");
+}
+
 function resetApp() { if (confirm('Redefinir tudo?')) { localStorage.clear(); location.reload(); } }
 
 // ── TOAST ─────────────────────────────────────────────────
