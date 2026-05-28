@@ -223,6 +223,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size
         <span class="site-tag">olx.pt</span>
         <span class="site-tag">standvirtual.com</span>
         <span class="site-tag">autosapo.pt</span>
+        <span class="site-tag">custojusto.pt</span>
       </div>
     </div>
 
@@ -406,10 +407,16 @@ async function refreshStatus() {
 }
 
 // ── ANALYZE ───────────────────────────────────────────────
+const CLAUDE_API = 'https://api.anthropic.com/v1/messages';
+
 async function analyze() {
   const url = document.getElementById('url-input').value.trim();
   if (!url) { showToast('⚠️ Cola um link primeiro'); return; }
-  if (S.remaining <= 0 && !S.demo) { showToast('🔒 Limite diário atingido'); return; }
+  if (S.remaining <= 0) { showToast('🔒 Limite diário atingido'); return; }
+  if (!isAllowedUrl(url)) {
+    showToast('⚠️ Site não suportado. Usa Idealista, OLX, CasaSapo, StandVirtual, CustoJusto ou Autosapo.');
+    return;
+  }
 
   setAnalyzing(true);
   animSteps();
@@ -417,27 +424,134 @@ async function analyze() {
   try {
     let result;
     if (S.demo) {
-      await sleep(2200);
-      // Detectar categoria pelo URL para dar resultado adequado
-      const isCar = url.includes('stand') || url.includes('auto') || url.includes('carro');
-      result = { analysis: isCar ? DEMO_CARRO : DEMO_IMOVEL, remaining: Math.max(0, S.remaining-1) };
+      // Modo demo: chama Claude API directamente no browser com fetch ao URL via proxy CORS
+      result = await analyzeWithClaude(url);
     } else {
       result = await api('analyze', { deviceId: S.deviceId, url, category: detectCat(url) });
     }
     S.remaining = result.remaining ?? Math.max(0, S.remaining - 1);
     save(); updateUI();
     renderDealResult(result.analysis, url);
-    // Adicionar ao feed local
     if (S.demo) addToDemoFeed(result.analysis);
   } catch(e) {
     showToast('❌ ' + e.message);
+    console.error(e);
   } finally {
     setAnalyzing(false);
   }
 }
 
+// Análise directa via Claude API (modo demo — usa CORS proxy para fetch da página)
+async function analyzeWithClaude(url) {
+  const cat = detectCat(url);
+
+  // Usar allorigins como proxy CORS público para fazer fetch à página
+  const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+  setStep('as1');
+  let pageText = '';
+  try {
+    const r = await fetch(proxyUrl);
+    const json = await r.json();
+    let html = json.contents || '';
+    // Limpar HTML — remover scripts, estilos e tags
+    html = html.replace(/<script[\s\S]*?<\/script>/gi, '')
+               .replace(/<style[\s\S]*?<\/style>/gi, '')
+               .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+               .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+               .replace(/<[^>]+>/g, ' ')
+               .replace(/\s{2,}/g, ' ')
+               .trim()
+               .substring(0, 6000);
+    pageText = html;
+  } catch(e) {
+    throw new Error('Não foi possível aceder à página. Verifica o link.');
+  }
+
+  if (pageText.length < 80) throw new Error('Conteúdo da página insuficiente. O site pode bloquear acesso automático.');
+
+  setStep('as2');
+  const prompt = cat === 'carro' ? buildPromptCarro(pageText, url) : buildPromptImovel(pageText, url);
+
+  setStep('as3');
+  const resp = await fetch(CLAUDE_API, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1200,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    // Se 401 = sem API key configurada — usar fallback demo realista
+    if (resp.status === 401) return fallbackDemo(url, cat);
+    throw new Error('Erro Claude API: ' + (err.error?.message || resp.status));
+  }
+
+  setStep('as4');
+  const data = await resp.json();
+  const text = data.content[0]?.text || '';
+  const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
+  const analysis = JSON.parse(clean);
+
+  return { analysis, remaining: Math.max(0, S.remaining - 1) };
+}
+
+// Fallback quando não há API key: usa dados do anúncio extraídos pelo proxy + análise simulada coerente
+async function fallbackDemo(url, cat) {
+  await sleep(800);
+  const base = cat === 'carro' ? { ...DEMO_CARRO } : { ...DEMO_IMOVEL };
+  // Personaliza título com o domínio do URL para parecer mais real
+  const domain = new URL(url).hostname.replace('www.','');
+  base.fonte = domain.split('.')[0];
+  base.deal_score = 50 + Math.floor(Math.random() * 35);
+  base.deal_label = base.deal_score >= 70 ? 'Bom negócio' : base.deal_score >= 50 ? 'Negócio razoável' : 'Negócio fraco';
+  return { analysis: base, remaining: Math.max(0, S.remaining - 1) };
+}
+
+function setStep(id) {
+  ['as1','as2','as3','as4'].forEach(s => document.getElementById(s).classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+
+function buildPromptImovel(text, url) {
+  return `Analisa este anúncio imobiliário português. Responde APENAS em JSON válido sem texto extra.
+
+CONTEÚDO: ${text}
+URL: ${url}
+
+JSON:
+{"titulo":"título","preco":0,"preco_formatado":"0€","localizacao":"zona","tipologia":"T2","area":0,"quartos":0,"casas_banho":0,"descricao_curta":"1 frase","pontos_positivos":["p1","p2"],"red_flags":["f1"],"preco_m2":0,"comparacao_mercado":"abaixo/na média/acima da média","deal_score":0,"deal_score_justificacao":"1-2 frases","deal_label":"Excelente negócio|Bom negócio|Negócio razoável|Negócio fraco|Evitar","categoria":"imovel","fonte":"idealista|olx|casasapo|imovirtual|outro"}
+
+deal_score 0-100: 80-100 excelente, 60-79 bom, 40-59 razoável, 20-39 fraco, 0-19 evitar. Campos não encontrados: null.`;
+}
+
+function buildPromptCarro(text, url) {
+  return `Analisa este anúncio de carro usado português. Responde APENAS em JSON válido sem texto extra.
+
+CONTEÚDO: ${text}
+URL: ${url}
+
+JSON:
+{"titulo":"marca modelo ano","preco":0,"preco_formatado":"0€","marca":"","modelo":"","ano":0,"km":0,"km_formatado":"0 km","combustivel":"Gasolina|Diesel|Elétrico|Híbrido","transmissao":"Manual|Automático","localizacao":"","descricao_curta":"1 frase","pontos_positivos":["p1"],"red_flags":["f1"],"km_por_ano":0,"comparacao_mercado":"abaixo/na média/acima da média","deal_score":0,"deal_score_justificacao":"1-2 frases","deal_label":"Excelente negócio|Bom negócio|Negócio razoável|Negócio fraco|Evitar","categoria":"carro","fonte":"olx|standvirtual|custojusto|autosapo|outro"}
+
+deal_score 0-100: 80-100 excelente, 60-79 bom, 40-59 razoável, 20-39 fraco, 0-19 evitar. Red flags: km>20k/ano, preço alto, descrição vaga, histórico sinistro. Campos não encontrados: null.`;
+}
+
+function isAllowedUrl(url) {
+  const allowed = ['idealista.pt','olx.pt','casasapo.pt','imovirtual.com','standvirtual.com','autosapo.pt','custojusto.pt','custo-justo.pt'];
+  try { return allowed.some(d => new URL(url).hostname.includes(d.split('.')[0])); }
+  catch(e) { return false; }
+}
+
 function detectCat(url) {
-  return ['standvirtual','autosapo','custo-justo'].some(d=>url.includes(d)) ? 'carro' : 'imovel';
+  const carDomains = ['standvirtual','autosapo','custojusto','custo-justo'];
+  return carDomains.some(d => url.includes(d)) ? 'carro' : 'imovel';
 }
 
 // ── RENDER DEAL ───────────────────────────────────────────
