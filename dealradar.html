@@ -498,10 +498,6 @@ async function loadFeed() {
   } catch(e) { showToast('❌ Erro a carregar feed'); }
 }
 
-);
-  renderFeed();
-}
-
 function renderFeed() {
   const list = document.getElementById('feed-list');
   let deals = [...S.feed];
