@@ -258,7 +258,6 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size
   <div class="sheet">
     <div class="shandle"></div>
     <p class="shtitle">Definições</p>
-    <div class="srow"><span class="srlabel">Modo</span><span class="srval" id="sv-mode">—</span></div>
     <div class="srow"><span class="srlabel">Análises hoje</span><span class="srval" id="sv-use">0 / 3</span></div>
     <div class="srow"><span class="srlabel">Device ID</span><span class="srval" id="sv-did" style="font-size:11px">—</span></div>
     <button class="shbtn sec" onclick="closeSet()">Fechar</button>
@@ -279,7 +278,6 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size
 const S = {
   backendUrl: 'https://script.google.com/macros/s/AKfycbw5M1u7lccHQC-1VWjRnEwQiiaCktns_ITzFVdj_cAweME4Ew_fbSlYfQeU-VmJyrQnsQ/exec',
   deviceId: '',
-  demo: false,
   plan: 'free',
   remaining: 3,
   limit: 3,
@@ -289,41 +287,7 @@ const S = {
   feed: [],
 };
 
-// ── DEMO DATA ─────────────────────────────────────────────
-const DEMO_IMOVEL = {
-  titulo: 'Apartamento T3 Lisboa — Campolide',
-  preco: 285000, preco_formatado: '285.000€',
-  localizacao: 'Campolide, Lisboa', tipologia: 'T3',
-  area: 95, quartos: 3, casas_banho: 2,
-  descricao_curta: 'T3 com boa exposição solar, cozinha equipada e garagem incluída.',
-  pontos_positivos: ['Preço 11% abaixo da mediana para a zona','Certificado energético C — razoável','Garagem incluída no preço','Transporte público a 5 minutos'],
-  red_flags: ['Sem obras recentes mencionadas','Piso térreo — menos valorizado'],
-  preco_m2: 3000, comparacao_mercado: 'abaixo da média',
-  deal_score: 78, deal_label: 'Bom negócio',
-  deal_score_justificacao: 'Preço abaixo do mercado para a zona com boas características. O facto de ser piso térreo pode limitar a valorização futura, mas para uso próprio é uma boa opção.',
-  categoria: 'imovel', fonte: 'idealista',
-};
-const DEMO_CARRO = {
-  titulo: 'BMW Série 3 320d 2020',
-  preco: 26500, preco_formatado: '26.500€',
-  marca: 'BMW', modelo: 'Série 3 320d', ano: 2020,
-  km: 68000, km_formatado: '68.000 km',
-  combustivel: 'Diesel', transmissao: 'Automático',
-  localizacao: 'Porto',
-  descricao_curta: 'BMW 320d em bom estado geral, full extras, revisões em dia.',
-  pontos_positivos: ['Km abaixo da média para o ano (14k/ano)','Full extras de fábrica','Revisões documentadas','Preço justo para o mercado'],
-  red_flags: ['Sem garantia do vendedor'],
-  km_por_ano: 14000, comparacao_mercado: 'na média',
-  deal_score: 62, deal_label: 'Bom negócio',
-  deal_score_justificacao: 'Preço alinhado com o mercado, km baixos para o ano. Bom estado geral. Vale a pena fazer inspeção pré-compra.',
-  categoria: 'carro', fonte: 'standvirtual',
-};
-const DEMO_FEED = [
-  { dealId:'d1', categoria:'imovel', titulo:'T2 Porto — Bonfim', precoFmt:'189.000€', localizacao:'Bonfim, Porto', score:85, scoreLabel:'Excelente negócio', justificacao:'Preço 18% abaixo do mercado para a zona.', votosPos:12, votosNeg:1, data: DEMO_IMOVEL },
-  { dealId:'d2', categoria:'carro', titulo:'Honda Civic 2021', precoFmt:'18.900€', localizacao:'Lisboa', score:71, scoreLabel:'Bom negócio', justificacao:'Km baixos, preço competitivo para o ano.', votosPos:8, votosNeg:2, data: DEMO_CARRO },
-  { dealId:'d3', categoria:'imovel', titulo:'T1 Braga Centro', precoFmt:'120.000€', localizacao:'Braga', score:55, scoreLabel:'Negócio razoável', justificacao:'Preço médio para a zona, sem grande diferencial.', votosPos:3, votosNeg:1, data: null },
-  { dealId:'d4', categoria:'carro', titulo:'VW Golf GTI 2019', precoFmt:'24.500€', localizacao:'Setúbal', score:38, scoreLabel:'Negócio fraco', justificacao:'Km altos para o ano, preço acima da média.', votosPos:1, votosNeg:5, data: null },
-];
+
 
 // ── INIT ──────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -331,10 +295,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('dr_state');
   if (saved) try { Object.assign(S, JSON.parse(saved)); } catch(e) {}
   S.backendUrl = S.backendUrl || 'https://script.google.com/macros/s/AKfycbw5M1u7lccHQC-1VWjRnEwQiiaCktns_ITzFVdj_cAweME4Ew_fbSlYfQeU-VmJyrQnsQ/exec';
-  if (S.backendUrl || S.demo) {
+  if (S.backendUrl) {
     showApp();
-    if (!S.demo) refreshStatus();
-    if (S.demo) loadDemoFeed();
+    refreshStatus();
   }
 });
 
@@ -344,12 +307,11 @@ function getDeviceId() {
   return id;
 }
 function save() {
-  localStorage.setItem('dr_state', JSON.stringify({ backendUrl:S.backendUrl, demo:S.demo, plan:S.plan, remaining:S.remaining, limit:S.limit }));
+  localStorage.setItem('dr_state', JSON.stringify({ backendUrl:S.backendUrl, plan:S.plan, remaining:S.remaining, limit:S.limit }));
 }
 
 // ── START ─────────────────────────────────────────────────
 async function startApp() {
-  S.demo = false;
   const btn = document.getElementById('start-btn');
   btn.textContent = 'A ligar...'; btn.disabled = true;
   try {
@@ -363,10 +325,6 @@ async function startApp() {
   }
 }
 
-function startDemo() {
-  S.demo = true; S.backendUrl = ''; S.remaining = 10; S.limit = 10;
-  save(); showApp(); loadDemoFeed();
-}
 
 function showApp() {
   document.getElementById('splash').classList.add('out');
@@ -412,129 +370,15 @@ async function analyze() {
 
   try {
     let result;
-    if (S.demo) {
-      result = await analyzeDemo(url);
-    } else {
-      result = await api('analyze', { deviceId: S.deviceId, url, category: detectCat(url) });
-    }
+    result = await api('analyze', { deviceId: S.deviceId, url, category: detectCat(url) });
     S.remaining = result.remaining ?? Math.max(0, S.remaining - 1);
     save(); updateUI();
     renderDealResult(result.analysis, url);
-    if (S.demo) addToDemoFeed(result.analysis);
   } catch(e) {
     showToast('❌ ' + e.message);
     console.error(e);
   } finally {
     setAnalyzing(false);
-  }
-}
-
-// Análise em modo demo: fetch da página via proxy + Claude API interna do claude.ai (sem chave)
-async function analyzeDemo(url) {
-  const cat = detectCat(url);
-
-  // Passo 1 — fetch da página via proxy CORS público
-  setStep('as1');
-  let pageText = '';
-  try {
-    const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
-    const r = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
-    if (!r.ok) throw new Error('proxy error');
-    const json = await r.json();
-    let html = json.contents || '';
-    html = html.replace(/<script[\s\S]*?<\/script>/gi, '')
-               .replace(/<style[\s\S]*?<\/style>/gi, '')
-               .replace(/<nav[\s\S]*?<\/nav>/gi, '')
-               .replace(/<footer[\s\S]*?<\/footer>/gi, '')
-               .replace(/<[^>]+>/g, ' ')
-               .replace(/\s{2,}/g, ' ')
-               .trim()
-               .substring(0, 5500);
-    pageText = html;
-  } catch(e) {
-    // Proxy falhou — usa texto vazio e Claude vai gerar análise razoável com base no URL
-    pageText = '';
-  }
-
-  setStep('as2');
-  const prompt = cat === 'carro' ? buildPromptCarro(pageText, url) : buildPromptImovel(pageText, url);
-
-  // Passo 2 — Claude API interna do claude.ai (não precisa de chave)
-  setStep('as3');
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1200,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
-
-  setStep('as4');
-
-  // Se a API interna não estiver disponível (fora do claude.ai) — gera análise baseada no URL
-  if (!resp.ok) {
-    return generateFromUrl(url, cat, pageText);
-  }
-
-  const data = await resp.json();
-  const text = data.content?.[0]?.text || '';
-  const clean = text.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
-  try {
-    const analysis = JSON.parse(clean);
-    return { analysis, remaining: Math.max(0, S.remaining - 1) };
-  } catch(e) {
-    return generateFromUrl(url, cat, pageText);
-  }
-}
-
-// Fallback inteligente: extrai o que consegue do URL + texto e gera análise coerente
-function generateFromUrl(url, cat, pageText) {
-  const domain = new URL(url).hostname.replace('www.','');
-  const fonte = domain.split('.')[0];
-
-  // Tenta extrair preço e modelo do texto da página ou do URL
-  const precoMatch = pageText.match(/(\d[\d\s.,]{2,8})\s*[€$]/);
-  const preco = precoMatch ? parseInt(precoMatch[1].replace(/\D/g,'')) : (cat==='carro' ? 18000 : 180000);
-  const precoFmt = preco.toLocaleString('pt-PT') + '€';
-
-  const score = 45 + Math.floor(Math.random() * 40);
-  const label = score >= 70 ? 'Bom negócio' : score >= 50 ? 'Negócio razoável' : 'Negócio fraco';
-
-  if (cat === 'carro') {
-    // Tenta extrair ano e km do texto
-    const anoMatch = pageText.match(/\b(201[5-9]|202[0-5])\b/);
-    const kmMatch  = pageText.match(/(\d{2,3}[\s.]?\d{3})\s*km/i);
-    const ano = anoMatch ? parseInt(anoMatch[1]) : 2020;
-    const km  = kmMatch  ? parseInt(kmMatch[1].replace(/\D/g,'')) : 75000;
-    return { analysis: {
-      titulo: 'Veículo — ' + fonte, preco, preco_formatado: precoFmt,
-      marca: null, modelo: null, ano, km, km_formatado: km.toLocaleString('pt-PT') + ' km',
-      combustivel: null, transmissao: null, localizacao: null,
-      descricao_curta: 'Anúncio analisado a partir do link submetido.',
-      pontos_positivos: ['Link submetido e processado'], red_flags: [],
-      km_por_ano: Math.round(km / (2025 - ano + 1)),
-      comparacao_mercado: 'na média', deal_score: score, deal_label: label,
-      deal_score_justificacao: 'Análise baseada nos dados disponíveis no anúncio. Para análise completa liga ao backend.',
-      categoria: 'carro', fonte,
-    }, remaining: Math.max(0, S.remaining - 1) };
-  } else {
-    const areaMatch = pageText.match(/(\d{2,4})\s*m[²2]/i);
-    const area = areaMatch ? parseInt(areaMatch[1]) : null;
-    return { analysis: {
-      titulo: 'Imóvel — ' + fonte, preco, preco_formatado: precoFmt,
-      localizacao: null, tipologia: null, area, quartos: null, casas_banho: null,
-      descricao_curta: 'Anúncio analisado a partir do link submetido.',
-      pontos_positivos: ['Link submetido e processado'], red_flags: [],
-      preco_m2: area ? Math.round(preco / area) : null,
-      comparacao_mercado: 'na média', deal_score: score, deal_label: label,
-      deal_score_justificacao: 'Análise baseada nos dados disponíveis no anúncio. Para análise completa liga ao backend.',
-      categoria: 'imovel', fonte,
-    }, remaining: Math.max(0, S.remaining - 1) };
   }
 }
 
@@ -647,7 +491,6 @@ function shareDeal(url, score, title) {
 
 // ── FEED ──────────────────────────────────────────────────
 async function loadFeed() {
-  if (S.demo) { loadDemoFeed(); return; }
   try {
     const r = await api('feed', { category: S.feedFilter === 'all' ? null : S.feedFilter, sort: S.feedSort });
     S.feed = r.deals || [];
@@ -655,19 +498,7 @@ async function loadFeed() {
   } catch(e) { showToast('❌ Erro a carregar feed'); }
 }
 
-function loadDemoFeed() {
-  S.feed = [...DEMO_FEED];
-  renderFeed();
-}
-
-function addToDemoFeed(data) {
-  S.feed.unshift({
-    dealId: 'new_'+Date.now(), categoria: data.categoria,
-    titulo: data.titulo, precoFmt: data.preco_formatado,
-    localizacao: data.localizacao, score: data.deal_score,
-    scoreLabel: data.deal_label, justificacao: data.deal_score_justificacao,
-    votosPos: 0, votosNeg: 0, data,
-  });
+);
   renderFeed();
 }
 
@@ -716,7 +547,7 @@ function setFilter(f, btn) {
 function toggleSort() {
   S.feedSort = S.feedSort === 'recent' ? 'score' : 'recent';
   document.getElementById('sort-label').textContent = S.feedSort === 'score' ? 'Melhor score' : 'Recentes';
-  if (!S.demo) loadFeed(); else renderFeed();
+  loadFeed();
 }
 
 // ── UI HELPERS ────────────────────────────────────────────
@@ -733,7 +564,6 @@ function updateUI() {
   const b = document.getElementById('ubadge');
   b.textContent = S.remaining + ' análises';
   b.className = 'chip ' + (S.remaining <= 0 ? 'warn' : S.remaining >= S.limit ? 'ok' : '');
-  document.getElementById('sv-mode').textContent = S.demo ? '✦ Demo' : 'Produção';
   document.getElementById('sv-use').textContent = (S.limit - S.remaining) + ' / ' + S.limit;
   document.getElementById('sv-did').textContent = S.deviceId;
 }
