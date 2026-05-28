@@ -180,16 +180,9 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size
     <div class="s-radar-dot">📡</div>
   </div>
   <h1 class="s-title">Deal<em>Radar</em></h1>
-  <p class="s-sub">Cola o link de qualquer anúncio — a IA analisa, compara com o mercado e diz-te se é bom negócio.</p>
+  <p class="s-sub">Cola o link de qualquer anúncio imobiliário ou de carro — a IA analisa e diz-te se é bom negócio.</p>
   <div class="s-form">
-    <div>
-      <label class="flabel">URL do servidor (Apps Script)</label>
-      <input class="finput" type="url" id="backend-url" placeholder="https://script.google.com/macros/s/...">
-      <p class="note">Cola o URL da tua implementação Google Apps Script.<br>
-        <a href="https://script.google.com" target="_blank">script.google.com</a> → Implementar → Web App</p>
-    </div>
-    <button class="btn-go" id="start-btn" onclick="startApp()">Ligar ao servidor →</button>
-    <button class="btn-go" onclick="startDemo()" style="background:var(--bg3);color:var(--text);border:1px solid var(--border2);margin-top:-4px">Experimentar em modo demo</button>
+    <button class="btn-go" id="start-btn" onclick="startApp()">Entrar →</button>
   </div>
 </div>
 
@@ -284,7 +277,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size
 <script>
 // ── STATE ──────────────────────────────────────────────────
 const S = {
-  backendUrl: '',
+  backendUrl: 'https://script.google.com/macros/s/AKfycbw5M1u7lccHQC-1VWjRnEwQiiaCktns_ITzFVdj_cAweME4Ew_fbSlYfQeU-VmJyrQnsQ/exec',
   deviceId: '',
   demo: false,
   plan: 'free',
@@ -337,6 +330,7 @@ window.addEventListener('DOMContentLoaded', () => {
   S.deviceId = getDeviceId();
   const saved = localStorage.getItem('dr_state');
   if (saved) try { Object.assign(S, JSON.parse(saved)); } catch(e) {}
+  S.backendUrl = S.backendUrl || 'https://script.google.com/macros/s/AKfycbw5M1u7lccHQC-1VWjRnEwQiiaCktns_ITzFVdj_cAweME4Ew_fbSlYfQeU-VmJyrQnsQ/exec';
   if (S.backendUrl || S.demo) {
     showApp();
     if (!S.demo) refreshStatus();
@@ -355,9 +349,6 @@ function save() {
 
 // ── START ─────────────────────────────────────────────────
 async function startApp() {
-  const url = document.getElementById('backend-url').value.trim();
-  if (!url || !url.startsWith('https://script.google.com')) { showToast('⚠️ URL inválido'); return; }
-  S.backendUrl = url;
   S.demo = false;
   const btn = document.getElementById('start-btn');
   btn.textContent = 'A ligar...'; btn.disabled = true;
@@ -366,10 +357,9 @@ async function startApp() {
     const status = await api('status', { deviceId: S.deviceId });
     S.plan = status.plan; S.remaining = status.remaining; S.limit = status.limit;
     save(); showApp(); loadFeed();
-    showToast('✅ Ligado ao servidor!');
   } catch(e) {
-    showToast('❌ Erro: ' + e.message);
-    btn.textContent = 'Ligar ao servidor →'; btn.disabled = false;
+    showToast('❌ Erro ao ligar: ' + e.message);
+    btn.textContent = 'Entrar →'; btn.disabled = false;
   }
 }
 
