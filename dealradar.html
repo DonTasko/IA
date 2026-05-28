@@ -276,7 +276,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size
 <script>
 // ── STATE ──────────────────────────────────────────────────
 const S = {
-  backendUrl: 'https://script.google.com/macros/s/AKfycbw5M1u7lccHQC-1VWjRnEwQiiaCktns_ITzFVdj_cAweME4Ew_fbSlYfQeU-VmJyrQnsQ/exec',
+  backendUrl: 'https://script.google.com/macros/s/AKfycbwFS3a06KTr4XGELLv8CYGcJSF4U8qpKjGJrLJUgbU-H1s_0YxKrTBnTr4mz7wBU6K-hw/exec',
   deviceId: '',
   plan: 'free',
   remaining: 3,
@@ -294,7 +294,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   S.deviceId = getDeviceId();
   const saved = localStorage.getItem('dr_state');
   if (saved) try { Object.assign(S, JSON.parse(saved)); } catch(e) {}
-  S.backendUrl = 'https://script.google.com/macros/s/AKfycbw5M1u7lccHQC-1VWjRnEwQiiaCktns_ITzFVdj_cAweME4Ew_fbSlYfQeU-VmJyrQnsQ/exec';
+  S.backendUrl = 'https://script.google.com/macros/s/AKfycbwFS3a06KTr4XGELLv8CYGcJSF4U8qpKjGJrLJUgbU-H1s_0YxKrTBnTr4mz7wBU6K-hw/exec';
   // Registar sempre — o backend ignora se já existe
   try {
     await api('register', { deviceId: S.deviceId });
