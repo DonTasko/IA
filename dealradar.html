@@ -290,15 +290,22 @@ const S = {
 
 
 // ── INIT ──────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   S.deviceId = getDeviceId();
   const saved = localStorage.getItem('dr_state');
   if (saved) try { Object.assign(S, JSON.parse(saved)); } catch(e) {}
-  S.backendUrl = S.backendUrl || 'https://script.google.com/macros/s/AKfycbw5M1u7lccHQC-1VWjRnEwQiiaCktns_ITzFVdj_cAweME4Ew_fbSlYfQeU-VmJyrQnsQ/exec';
-  if (S.backendUrl) {
-    showApp();
-    refreshStatus();
+  S.backendUrl = 'https://script.google.com/macros/s/AKfycbw5M1u7lccHQC-1VWjRnEwQiiaCktns_ITzFVdj_cAweME4Ew_fbSlYfQeU-VmJyrQnsQ/exec';
+  // Registar sempre — o backend ignora se já existe
+  try {
+    await api('register', { deviceId: S.deviceId });
+    const st = await api('status', { deviceId: S.deviceId });
+    S.plan = st.plan; S.remaining = st.remaining; S.limit = st.limit;
+    save();
+  } catch(e) {
+    // Se falhar (offline), usa valores guardados
   }
+  showApp();
+  loadFeed();
 });
 
 function getDeviceId() {
@@ -311,18 +318,9 @@ function save() {
 }
 
 // ── START ─────────────────────────────────────────────────
-async function startApp() {
-  const btn = document.getElementById('start-btn');
-  btn.textContent = 'A ligar...'; btn.disabled = true;
-  try {
-    await api('register', { deviceId: S.deviceId });
-    const status = await api('status', { deviceId: S.deviceId });
-    S.plan = status.plan; S.remaining = status.remaining; S.limit = status.limit;
-    save(); showApp(); loadFeed();
-  } catch(e) {
-    showToast('❌ Erro ao ligar: ' + e.message);
-    btn.textContent = 'Entrar →'; btn.disabled = false;
-  }
+function startApp() {
+  showApp();
+  loadFeed();
 }
 
 
@@ -345,14 +343,6 @@ async function api(action, body) {
   const data = await r.json();
   if (data.error) throw new Error(data.error);
   return data;
-}
-
-async function refreshStatus() {
-  try {
-    const st = await api('status', { deviceId: S.deviceId });
-    S.remaining = st.remaining; S.limit = st.limit; S.plan = st.plan;
-    save(); updateUI();
-  } catch(e) {}
 }
 
 // ── ANALYZE ───────────────────────────────────────────────
