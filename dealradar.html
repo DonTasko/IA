@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<title>DealRadar</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=DM+Mono:wght@400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0a;--bg2:#111;--bg3:#191919;--bg4:#202020;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
+  --text:#ede9e0;--text2:#888480;--text3:#444240;
+  --accent:#00e5a0;--accent2:#00c488;--adim:rgba(0,229,160,0.10);
+  --warn:#f5a623;--wdim:rgba(245,166,35,0.12);
+  --danger:#e05252;--ddim:rgba(224,82,82,0.10);
+  --fd:'Bricolage Grotesque',sans-serif;
+  --fb:'DM Sans',sans-serif;
+  --fm:'DM Mono',monospace;
+  --r:12px;--rl:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size:15px;min-height:100dvh;overflow-x:hidden}
+
+/* ── SPLASH ── */
+#splash{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;transition:opacity .45s,transform .45s}
+#splash.out{opacity:0;pointer-events:none;transform:translateY(-16px)}
+.s-radar{position:relative;width:80px;height:80px;margin:0 auto 1.5rem}
+.s-radar-ring{position:absolute;inset:0;border:1.5px solid var(--accent);border-radius:50%;opacity:.3;animation:radar-ping 2s ease-out infinite}
+.s-radar-ring:nth-child(2){animation-delay:.5s}
+.s-radar-ring:nth-child(3){animation-delay:1s}
+@keyframes radar-ping{0%{transform:scale(.4);opacity:.7}100%{transform:scale(1.8);opacity:0}}
+.s-radar-dot{position:absolute;inset:50%;transform:translate(-50%,-50%);width:32px;height:32px;background:var(--adim);border:1.5px solid var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px}
+.s-title{font-family:var(--fd);font-size:36px;font-weight:800;letter-spacing:-.04em;text-align:center;margin-bottom:.4rem}
+.s-title em{color:var(--accent);font-style:normal}
+.s-sub{color:var(--text2);font-size:13px;text-align:center;line-height:1.65;max-width:280px;margin-bottom:2rem}
+.s-form{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px}
+.flabel{font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);display:block;margin-bottom:5px}
+.finput{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:12px 15px;color:var(--text);font-family:var(--fb);font-size:14px;outline:none;transition:border-color .2s}
+.finput:focus{border-color:var(--accent)}
+.finput::placeholder{color:var(--text3)}
+.note{font-size:11px;color:var(--text3);line-height:1.5;margin-top:4px}
+.note a{color:var(--accent);text-decoration:none}
+.btn-go{width:100%;background:var(--accent);color:#0a0a0a;font-family:var(--fd);font-size:15px;font-weight:700;padding:14px;border-radius:var(--r);border:none;cursor:pointer;letter-spacing:.01em;transition:transform .15s,opacity .15s;margin-top:4px}
+.btn-go:active{transform:scale(.97);opacity:.9}
+.btn-go:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── APP ── */
+#app{display:none;min-height:100dvh;flex-direction:column}
+#app.on{display:flex}
+
+/* header */
+.hdr{position:sticky;top:0;z-index:50;background:rgba(10,10,10,.93);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--border);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.hlogo{font-family:var(--fd);font-size:18px;font-weight:800;letter-spacing:-.03em;flex-shrink:0}
+.hlogo em{color:var(--accent);font-style:normal}
+.hright{display:flex;gap:7px;align-items:center}
+.chip{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--text2);font-weight:500;white-space:nowrap}
+.chip.ok{background:var(--adim);border-color:rgba(0,229,160,.2);color:var(--accent)}
+.chip.warn{border-color:rgba(224,82,82,.3);color:var(--danger)}
+.ibtn{width:34px;height:34px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;transition:background .2s;flex-shrink:0}
+.ibtn:active{background:var(--bg4)}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:6px;padding:14px 18px 0;background:var(--bg);border-bottom:1px solid var(--border)}
+.tab{padding:9px 16px;border-radius:10px 10px 0 0;border:none;border-bottom:none;background:transparent;color:var(--text2);font-family:var(--fb);font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;position:relative;bottom:-1px}
+.tab.on{background:var(--bg2);color:var(--text);border:1px solid var(--border);border-bottom-color:var(--bg2)}
+
+/* content */
+.content{flex:1;overflow-y:auto;padding:18px 18px 90px;background:var(--bg2)}
+
+/* ── SUBMIT PANEL ── */
+.submit-panel{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rl);padding:16px;margin-bottom:18px}
+.sp-title{font-family:var(--fd);font-size:13px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
+.url-row{display:flex;gap:8px;align-items:center}
+.url-input{flex:1;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);padding:11px 14px;color:var(--text);font-family:var(--fm);font-size:12px;outline:none;transition:border-color .2s}
+.url-input:focus{border-color:var(--accent)}
+.url-input::placeholder{color:var(--text3);font-family:var(--fb)}
+.analyze-btn{background:var(--accent);color:#0a0a0a;font-family:var(--fd);font-size:13px;font-weight:700;padding:11px 16px;border-radius:var(--r);border:none;cursor:pointer;white-space:nowrap;transition:transform .15s,opacity .2s;flex-shrink:0}
+.analyze-btn:active{transform:scale(.97)}
+.analyze-btn:disabled{opacity:.4;cursor:not-allowed}
+.sites-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.site-tag{font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 7px;color:var(--text3)}
+
+/* ── LOADING ── */
+.analyzing-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rl);padding:24px;text-align:center;margin-bottom:18px}
+.a-spinner{width:36px;height:36px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.a-step{font-size:12px;color:var(--text3);padding:3px 0;transition:color .3s}
+.a-step.on{color:var(--accent)}
+
+/* ── DEAL CARD (result) ── */
+.deal-result{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:18px;animation:sup .35s ease}
+@keyframes sup{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+.deal-score-bar{padding:16px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border)}
+.score-ring{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;border:2.5px solid currentColor;flex-shrink:0}
+.score-num{font-family:var(--fd);font-size:20px;font-weight:800;line-height:1}
+.score-label-sm{font-size:8px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-top:1px}
+.score-info{flex:1;min-width:0}
+.score-title{font-family:var(--fd);font-size:16px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.score-badge{display:inline-block;font-size:10px;font-weight:500;padding:2px 8px;border-radius:4px;letter-spacing:.03em}
+
+.deal-body{padding:16px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.detail-item{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.detail-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.detail-val{font-size:14px;font-weight:500;color:var(--text)}
+.detail-val.price{font-family:var(--fd);font-size:18px;font-weight:800;color:var(--accent)}
+
+.section-sm{font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+.points-list{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.point{display:flex;gap:8px;font-size:13px;color:var(--text2);align-items:flex-start}
+.point-icon{flex-shrink:0;margin-top:1px;font-size:13px}
+.justificacao{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:14px}
+
+.deal-actions{display:flex;gap:8px}
+.daction{flex:1;padding:11px;border-radius:var(--r);border:1px solid var(--border);background:var(--bg);font-family:var(--fb);font-size:13px;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s}
+.daction:active{background:var(--bg3)}
+.daction.primary{background:var(--adim);border-color:rgba(0,229,160,.2);color:var(--accent)}
+
+/* ── FEED ── */
+.feed-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.feed-filters{display:flex;gap:6px}
+.ffilter{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--text2);cursor:pointer;transition:all .15s;border:none}
+.ffilter.on{background:var(--adim);color:var(--accent)}
+.fsort{font-size:12px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:var(--fb)}
+
+.feed-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;display:flex;gap:12px;align-items:flex-start}
+.feed-card:active{border-color:var(--border2)}
+.feed-score{width:44px;height:44px;border-radius:50%;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:16px;font-weight:800;flex-shrink:0}
+.feed-body{flex:1;min-width:0}
+.feed-title{font-size:14px;font-weight:500;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feed-meta{font-size:12px;color:var(--text2);margin-bottom:6px}
+.feed-bottom{display:flex;align-items:center;justify-content:space-between}
+.feed-price{font-family:var(--fd);font-size:15px;font-weight:700;color:var(--accent)}
+.feed-cat{font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 7px;color:var(--text3)}
+
+.empty-feed{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-icon{font-size:40px;margin-bottom:10px}
+.empty-text{font-size:13px;line-height:1.6}
+
+/* ── AD BAR ── */
+.adbar{position:fixed;bottom:0;left:0;right:0;background:rgba(10,10,10,.95);border-top:1px solid var(--border);height:58px;display:flex;align-items:center;justify-content:center;z-index:40}
+.adlabel{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;position:absolute;top:5px;left:8px}
+.adslot{width:300px;height:36px;background:var(--bg3);border:1px dashed var(--border2);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3)}
+
+/* ── SETTINGS SHEET ── */
+#setpanel{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:none;align-items:flex-end}
+#setpanel.on{display:flex}
+.sheet{background:var(--bg2);border-top:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;padding:18px 18px 36px;animation:shup .28s ease}
+@keyframes shup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.shandle{width:32px;height:3px;background:var(--border2);border-radius:2px;margin:0 auto 18px}
+.shtitle{font-family:var(--fd);font-size:17px;font-weight:700;margin-bottom:18px}
+.srow{padding:12px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.srlabel{font-size:14px;color:var(--text2)}
+.srval{font-size:14px;font-weight:500;color:var(--accent)}
+.shbtn{width:100%;padding:12px;border-radius:var(--r);border:none;cursor:pointer;font-family:var(--fb);font-size:14px;margin-top:10px}
+.shbtn.sec{background:var(--bg3);color:var(--text);border:1px solid var(--border2)}
+.shbtn.danger{background:var(--ddim);color:var(--danger);border:1px solid rgba(224,82,82,.2)}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--bg3);border:1px solid var(--border2);border-radius:9px;padding:9px 16px;font-size:12px;color:var(--text);opacity:0;pointer-events:none;transition:all .28s;white-space:nowrap;z-index:300}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* score colors */
+.score-green{color:var(--accent)}
+.score-amber{color:var(--warn)}
+.score-red{color:var(--danger)}
+.score-gray{color:var(--text3)}
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="s-radar">
+    <div class="s-radar-ring"></div>
+    <div class="s-radar-ring"></div>
+    <div class="s-radar-ring"></div>
+    <div class="s-radar-dot">📡</div>
+  </div>
+  <h1 class="s-title">Deal<em>Radar</em></h1>
+  <p class="s-sub">Cola o link de qualquer anúncio — a IA analisa, compara com o mercado e diz-te se é bom negócio.</p>
+  <div class="s-form">
+    <div>
+      <label class="flabel">URL do servidor (Apps Script)</label>
+      <input class="finput" type="url" id="backend-url" placeholder="https://script.google.com/macros/s/...">
+      <p class="note">Cola o URL da tua implementação Google Apps Script.<br>
+        <a href="https://script.google.com" target="_blank">script.google.com</a> → Implementar → Web App</p>
+    </div>
+    <button class="btn-go" id="start-btn" onclick="startApp()">Ligar ao servidor →</button>
+    <button class="btn-go" onclick="startDemo()" style="background:var(--bg3);color:var(--text);border:1px solid var(--border2);margin-top:-4px">Experimentar em modo demo</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header class="hdr">
+    <div class="hlogo">Deal<em>Radar</em></div>
+    <div class="hright">
+      <span class="chip" id="ubadge">3 análises</span>
+      <div class="ibtn" onclick="openSet()">⚙️</div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab on" onclick="setTab('analisar',this)">🔍 Analisar</button>
+    <button class="tab" onclick="setTab('feed',this)">📡 Feed</button>
+  </div>
+
+  <!-- ANALISAR TAB -->
+  <div class="content" id="tab-analisar">
+    <div class="submit-panel">
+      <p class="sp-title">Submeter anúncio</p>
+      <div class="url-row">
+        <input class="url-input" type="url" id="url-input" placeholder="Cola o link do anúncio aqui...">
+        <button class="analyze-btn" id="analyze-btn" onclick="analyze()">Analisar ✦</button>
+      </div>
+      <div class="sites-row">
+        <span class="site-tag">idealista.pt</span>
+        <span class="site-tag">casasapo.pt</span>
+        <span class="site-tag">imovirtual.com</span>
+        <span class="site-tag">olx.pt</span>
+        <span class="site-tag">standvirtual.com</span>
+        <span class="site-tag">autosapo.pt</span>
+      </div>
+    </div>
+
+    <div id="analyzing-state" style="display:none">
+      <div class="analyzing-card">
+        <div class="a-spinner"></div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:10px">A analisar o anúncio...</p>
+        <p class="a-step on" id="as1">A aceder à página</p>
+        <p class="a-step" id="as2">A extrair informações</p>
+        <p class="a-step" id="as3">A comparar com o mercado</p>
+        <p class="a-step" id="as4">A calcular Deal Score</p>
+      </div>
+    </div>
+
+    <div id="result-container"></div>
+  </div>
+
+  <!-- FEED TAB -->
+  <div class="content" id="tab-feed" style="display:none">
+    <div class="feed-header">
+      <div class="feed-filters">
+        <button class="ffilter on" onclick="setFilter('all',this)">Todos</button>
+        <button class="ffilter" onclick="setFilter('imovel',this)">🏠 Imóveis</button>
+        <button class="ffilter" onclick="setFilter('carro',this)">🚗 Carros</button>
+      </div>
+      <button class="fsort" onclick="toggleSort()">⇅ <span id="sort-label">Recentes</span></button>
+    </div>
+    <div id="feed-list">
+      <div class="empty-feed">
+        <div class="empty-icon">📡</div>
+        <p class="empty-text">Ainda sem deals no feed.<br>Sê o primeiro a submeter um anúncio!</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="setpanel" onclick="closeSetOut(event)">
+  <div class="sheet">
+    <div class="shandle"></div>
+    <p class="shtitle">Definições</p>
+    <div class="srow"><span class="srlabel">Modo</span><span class="srval" id="sv-mode">—</span></div>
+    <div class="srow"><span class="srlabel">Análises hoje</span><span class="srval" id="sv-use">0 / 3</span></div>
+    <div class="srow"><span class="srlabel">Device ID</span><span class="srval" id="sv-did" style="font-size:11px">—</span></div>
+    <button class="shbtn sec" onclick="closeSet()">Fechar</button>
+    <button class="shbtn danger" onclick="resetApp()">Redefinir app</button>
+  </div>
+</div>
+
+<div class="adbar">
+  <span class="adlabel">Anúncio</span>
+  <div class="adslot">📱 AdMob 300×36</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────
+const S = {
+  backendUrl: '',
+  deviceId: '',
+  demo: false,
+  plan: 'free',
+  remaining: 3,
+  limit: 3,
+  tab: 'analisar',
+  feedFilter: 'all',
+  feedSort: 'recent',
+  feed: [],
+};
+
+// ── DEMO DATA ─────────────────────────────────────────────
+const DEMO_IMOVEL = {
+  titulo: 'Apartamento T3 Lisboa — Campolide',
+  preco: 285000, preco_formatado: '285.000€',
+  localizacao: 'Campolide, Lisboa', tipologia: 'T3',
+  area: 95, quartos: 3, casas_banho: 2,
+  descricao_curta: 'T3 com boa exposição solar, cozinha equipada e garagem incluída.',
+  pontos_positivos: ['Preço 11% abaixo da mediana para a zona','Certificado energético C — razoável','Garagem incluída no preço','Transporte público a 5 minutos'],
+  red_flags: ['Sem obras recentes mencionadas','Piso térreo — menos valorizado'],
+  preco_m2: 3000, comparacao_mercado: 'abaixo da média',
+  deal_score: 78, deal_label: 'Bom negócio',
+  deal_score_justificacao: 'Preço abaixo do mercado para a zona com boas características. O facto de ser piso térreo pode limitar a valorização futura, mas para uso próprio é uma boa opção.',
+  categoria: 'imovel', fonte: 'idealista',
+};
+const DEMO_CARRO = {
+  titulo: 'BMW Série 3 320d 2020',
+  preco: 26500, preco_formatado: '26.500€',
+  marca: 'BMW', modelo: 'Série 3 320d', ano: 2020,
+  km: 68000, km_formatado: '68.000 km',
+  combustivel: 'Diesel', transmissao: 'Automático',
+  localizacao: 'Porto',
+  descricao_curta: 'BMW 320d em bom estado geral, full extras, revisões em dia.',
+  pontos_positivos: ['Km abaixo da média para o ano (14k/ano)','Full extras de fábrica','Revisões documentadas','Preço justo para o mercado'],
+  red_flags: ['Sem garantia do vendedor'],
+  km_por_ano: 14000, comparacao_mercado: 'na média',
+  deal_score: 62, deal_label: 'Bom negócio',
+  deal_score_justificacao: 'Preço alinhado com o mercado, km baixos para o ano. Bom estado geral. Vale a pena fazer inspeção pré-compra.',
+  categoria: 'carro', fonte: 'standvirtual',
+};
+const DEMO_FEED = [
+  { dealId:'d1', categoria:'imovel', titulo:'T2 Porto — Bonfim', precoFmt:'189.000€', localizacao:'Bonfim, Porto', score:85, scoreLabel:'Excelente negócio', justificacao:'Preço 18% abaixo do mercado para a zona.', votosPos:12, votosNeg:1, data: DEMO_IMOVEL },
+  { dealId:'d2', categoria:'carro', titulo:'Honda Civic 2021', precoFmt:'18.900€', localizacao:'Lisboa', score:71, scoreLabel:'Bom negócio', justificacao:'Km baixos, preço competitivo para o ano.', votosPos:8, votosNeg:2, data: DEMO_CARRO },
+  { dealId:'d3', categoria:'imovel', titulo:'T1 Braga Centro', precoFmt:'120.000€', localizacao:'Braga', score:55, scoreLabel:'Negócio razoável', justificacao:'Preço médio para a zona, sem grande diferencial.', votosPos:3, votosNeg:1, data: null },
+  { dealId:'d4', categoria:'carro', titulo:'VW Golf GTI 2019', precoFmt:'24.500€', localizacao:'Setúbal', score:38, scoreLabel:'Negócio fraco', justificacao:'Km altos para o ano, preço acima da média.', votosPos:1, votosNeg:5, data: null },
+];
+
+// ── INIT ──────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  S.deviceId = getDeviceId();
+  const saved = localStorage.getItem('dr_state');
+  if (saved) try { Object.assign(S, JSON.parse(saved)); } catch(e) {}
+  if (S.backendUrl || S.demo) {
+    showApp();
+    if (!S.demo) refreshStatus();
+    if (S.demo) loadDemoFeed();
+  }
+});
+
+function getDeviceId() {
+  let id = localStorage.getItem('dr_device');
+  if (!id) { id = 'dr_'+Date.now()+'_'+Math.random().toString(36).slice(2,8); localStorage.setItem('dr_device',id); }
+  return id;
+}
+function save() {
+  localStorage.setItem('dr_state', JSON.stringify({ backendUrl:S.backendUrl, demo:S.demo, plan:S.plan, remaining:S.remaining, limit:S.limit }));
+}
+
+// ── START ─────────────────────────────────────────────────
+async function startApp() {
+  const url = document.getElementById('backend-url').value.trim();
+  if (!url || !url.startsWith('https://script.google.com')) { showToast('⚠️ URL inválido'); return; }
+  S.backendUrl = url;
+  S.demo = false;
+  const btn = document.getElementById('start-btn');
+  btn.textContent = 'A ligar...'; btn.disabled = true;
+  try {
+    await api('register', { deviceId: S.deviceId });
+    const status = await api('status', { deviceId: S.deviceId });
+    S.plan = status.plan; S.remaining = status.remaining; S.limit = status.limit;
+    save(); showApp(); loadFeed();
+    showToast('✅ Ligado ao servidor!');
+  } catch(e) {
+    showToast('❌ Erro: ' + e.message);
+    btn.textContent = 'Ligar ao servidor →'; btn.disabled = false;
+  }
+}
+
+function startDemo() {
+  S.demo = true; S.backendUrl = ''; S.remaining = 3; S.limit = 3;
+  save(); showApp(); loadDemoFeed();
+}
+
+function showApp() {
+  document.getElementById('splash').classList.add('out');
+  setTimeout(() => {
+    document.getElementById('splash').style.display = 'none';
+    document.getElementById('app').classList.add('on');
+  }, 460);
+  updateUI();
+}
+
+// ── API ───────────────────────────────────────────────────
+async function api(action, body) {
+  const r = await fetch(S.backendUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ action, ...body }),
+  });
+  const data = await r.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+async function refreshStatus() {
+  try {
+    const st = await api('status', { deviceId: S.deviceId });
+    S.remaining = st.remaining; S.limit = st.limit; S.plan = st.plan;
+    save(); updateUI();
+  } catch(e) {}
+}
+
+// ── ANALYZE ───────────────────────────────────────────────
+async function analyze() {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url) { showToast('⚠️ Cola um link primeiro'); return; }
+  if (S.remaining <= 0 && !S.demo) { showToast('🔒 Limite diário atingido'); return; }
+
+  setAnalyzing(true);
+  animSteps();
+
+  try {
+    let result;
+    if (S.demo) {
+      await sleep(2200);
+      // Detectar categoria pelo URL para dar resultado adequado
+      const isCar = url.includes('stand') || url.includes('auto') || url.includes('carro');
+      result = { analysis: isCar ? DEMO_CARRO : DEMO_IMOVEL, remaining: Math.max(0, S.remaining-1) };
+    } else {
+      result = await api('analyze', { deviceId: S.deviceId, url, category: detectCat(url) });
+    }
+    S.remaining = result.remaining ?? Math.max(0, S.remaining - 1);
+    save(); updateUI();
+    renderDealResult(result.analysis, url);
+    // Adicionar ao feed local
+    if (S.demo) addToDemoFeed(result.analysis);
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    setAnalyzing(false);
+  }
+}
+
+function detectCat(url) {
+  return ['standvirtual','autosapo','custo-justo'].some(d=>url.includes(d)) ? 'carro' : 'imovel';
+}
+
+// ── RENDER DEAL ───────────────────────────────────────────
+function renderDealResult(d, url) {
+  const c = document.getElementById('result-container');
+  const sc = scoreColor(d.deal_score);
+  const catIcon = d.categoria === 'carro' ? '🚗' : '🏠';
+
+  // Detalhes específicos por categoria
+  let detailsHtml = '';
+  if (d.categoria === 'imovel') {
+    detailsHtml = `
+      <div class="detail-item"><div class="detail-label">Preço</div><div class="detail-val price">${h(d.preco_formatado||'N/D')}</div></div>
+      <div class="detail-item"><div class="detail-label">Tipologia</div><div class="detail-val">${h(d.tipologia||'N/D')}</div></div>
+      <div class="detail-item"><div class="detail-label">Área</div><div class="detail-val">${d.area ? d.area+'m²' : 'N/D'}</div></div>
+      <div class="detail-item"><div class="detail-label">Preço/m²</div><div class="detail-val">${d.preco_m2 ? d.preco_m2+'€' : 'N/D'}</div></div>
+      <div class="detail-item"><div class="detail-label">Localização</div><div class="detail-val">${h(d.localizacao||'N/D')}</div></div>
+      <div class="detail-item"><div class="detail-label">Mercado</div><div class="detail-val">${h(d.comparacao_mercado||'N/D')}</div></div>`;
+  } else {
+    detailsHtml = `
+      <div class="detail-item"><div class="detail-label">Preço</div><div class="detail-val price">${h(d.preco_formatado||'N/D')}</div></div>
+      <div class="detail-item"><div class="detail-label">Ano</div><div class="detail-val">${d.ano||'N/D'}</div></div>
+      <div class="detail-item"><div class="detail-label">Quilómetros</div><div class="detail-val">${h(d.km_formatado||'N/D')}</div></div>
+      <div class="detail-item"><div class="detail-label">Combustível</div><div class="detail-val">${h(d.combustivel||'N/D')}</div></div>
+      <div class="detail-item"><div class="detail-label">Localização</div><div class="detail-val">${h(d.localizacao||'N/D')}</div></div>
+      <div class="detail-item"><div class="detail-label">Mercado</div><div class="detail-val">${h(d.comparacao_mercado||'N/D')}</div></div>`;
+  }
+
+  c.innerHTML = `<div class="deal-result">
+    <div class="deal-score-bar">
+      <div class="score-ring ${sc}">
+        <span class="score-num">${d.deal_score}</span>
+        <span class="score-label-sm">score</span>
+      </div>
+      <div class="score-info">
+        <p class="score-title">${catIcon} ${h(d.titulo||'Anúncio')}</p>
+        <span class="score-badge" style="background:${scoreBg(d.deal_score)};color:${scoreClr(d.deal_score)}">${h(d.deal_label||'—')}</span>
+      </div>
+    </div>
+    <div class="deal-body">
+      <div class="detail-grid">${detailsHtml}</div>
+      ${d.deal_score_justificacao ? `<div class="justificacao">💡 ${h(d.deal_score_justificacao)}</div>` : ''}
+      ${d.pontos_positivos?.length ? `
+        <p class="section-sm">Pontos positivos</p>
+        <div class="points-list">${d.pontos_positivos.map(p=>`<div class="point"><span class="point-icon">✓</span><span>${h(p)}</span></div>`).join('')}</div>` : ''}
+      ${d.red_flags?.length ? `
+        <p class="section-sm">Atenção</p>
+        <div class="points-list">${d.red_flags.map(f=>`<div class="point"><span class="point-icon">⚠</span><span style="color:var(--warn)">${h(f)}</span></div>`).join('')}</div>` : ''}
+      <div class="deal-actions">
+        <button class="daction" onclick="copyDeal('${url}', ${d.deal_score}, '${h(d.titulo||'')}')">📋 Copiar</button>
+        <button class="daction" onclick="shareDeal('${url}', ${d.deal_score}, '${h(d.titulo||'')}')">↗ Partilhar</button>
+        <a class="daction primary" href="${url}" target="_blank">Ver anúncio</a>
+      </div>
+    </div>
+  </div>`;
+
+  window._lastDeal = d;
+}
+
+function copyDeal(url, score, title) {
+  const text = `🔍 DealRadar — Deal Score: ${score}/100\n${title}\n${url}`;
+  navigator.clipboard.writeText(text).then(() => showToast('✅ Copiado!'));
+}
+function shareDeal(url, score, title) {
+  const text = `🔍 DealRadar — Score ${score}/100\n${title}\n${url}`;
+  if (navigator.share) navigator.share({ title: 'DealRadar', text });
+  else navigator.clipboard.writeText(text).then(() => showToast('✅ Copiado!'));
+}
+
+// ── FEED ──────────────────────────────────────────────────
+async function loadFeed() {
+  if (S.demo) { loadDemoFeed(); return; }
+  try {
+    const r = await api('feed', { category: S.feedFilter === 'all' ? null : S.feedFilter, sort: S.feedSort });
+    S.feed = r.deals || [];
+    renderFeed();
+  } catch(e) { showToast('❌ Erro a carregar feed'); }
+}
+
+function loadDemoFeed() {
+  S.feed = [...DEMO_FEED];
+  renderFeed();
+}
+
+function addToDemoFeed(data) {
+  S.feed.unshift({
+    dealId: 'new_'+Date.now(), categoria: data.categoria,
+    titulo: data.titulo, precoFmt: data.preco_formatado,
+    localizacao: data.localizacao, score: data.deal_score,
+    scoreLabel: data.deal_label, justificacao: data.deal_score_justificacao,
+    votosPos: 0, votosNeg: 0, data,
+  });
+  renderFeed();
+}
+
+function renderFeed() {
+  const list = document.getElementById('feed-list');
+  let deals = [...S.feed];
+  if (S.feedFilter !== 'all') deals = deals.filter(d => d.categoria === S.feedFilter);
+  if (S.feedSort === 'score') deals.sort((a,b) => b.score - a.score);
+
+  if (!deals.length) {
+    list.innerHTML = `<div class="empty-feed"><div class="empty-icon">📡</div><p class="empty-text">Sem deals ${S.feedFilter !== 'all' ? 'nesta categoria' : ''}.<br>Sê o primeiro a submeter!</p></div>`;
+    return;
+  }
+  list.innerHTML = deals.map(d => {
+    const sc = scoreColor(d.score);
+    const catIcon = d.categoria === 'carro' ? '🚗' : '🏠';
+    return `<div class="feed-card" onclick="expandFeedDeal('${d.dealId}')">
+      <div class="feed-score ${sc}">${d.score}</div>
+      <div class="feed-body">
+        <p class="feed-title">${catIcon} ${h(d.titulo||'Anúncio')}</p>
+        <p class="feed-meta">${h(d.localizacao||'')} · ${h(d.scoreLabel||'')}</p>
+        <div class="feed-bottom">
+          <span class="feed-price">${h(d.precoFmt||'')}</span>
+          <span class="feed-cat">${d.categoria === 'carro' ? '🚗 Carro' : '🏠 Imóvel'}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function expandFeedDeal(id) {
+  const d = S.feed.find(x => x.dealId === id);
+  if (!d || !d.data) { showToast('ℹ️ Detalhes não disponíveis'); return; }
+  setTab('analisar', document.querySelector('.tab'));
+  renderDealResult(d.data, d.url || '#');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function setFilter(f, btn) {
+  S.feedFilter = f;
+  document.querySelectorAll('.ffilter').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  renderFeed();
+}
+
+function toggleSort() {
+  S.feedSort = S.feedSort === 'recent' ? 'score' : 'recent';
+  document.getElementById('sort-label').textContent = S.feedSort === 'score' ? 'Melhor score' : 'Recentes';
+  if (!S.demo) loadFeed(); else renderFeed();
+}
+
+// ── UI HELPERS ────────────────────────────────────────────
+function setTab(tab, btn) {
+  S.tab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  if (btn) btn.classList.add('on');
+  document.getElementById('tab-analisar').style.display = tab === 'analisar' ? 'block' : 'none';
+  document.getElementById('tab-feed').style.display = tab === 'feed' ? 'block' : 'none';
+  if (tab === 'feed') loadFeed();
+}
+
+function updateUI() {
+  const b = document.getElementById('ubadge');
+  b.textContent = S.remaining + ' análises';
+  b.className = 'chip ' + (S.remaining <= 0 ? 'warn' : S.remaining >= S.limit ? 'ok' : '');
+  document.getElementById('sv-mode').textContent = S.demo ? '✦ Demo' : 'Produção';
+  document.getElementById('sv-use').textContent = (S.limit - S.remaining) + ' / ' + S.limit;
+  document.getElementById('sv-did').textContent = S.deviceId;
+}
+
+function scoreColor(s) {
+  if (s >= 70) return 'score-green';
+  if (s >= 45) return 'score-amber';
+  if (s >= 25) return 'score-red';
+  return 'score-gray';
+}
+function scoreBg(s) {
+  if (s >= 70) return 'rgba(0,229,160,0.12)';
+  if (s >= 45) return 'rgba(245,166,35,0.12)';
+  return 'rgba(224,82,82,0.12)';
+}
+function scoreClr(s) {
+  if (s >= 70) return 'var(--accent)';
+  if (s >= 45) return 'var(--warn)';
+  return 'var(--danger)';
+}
+
+let astimer;
+function setAnalyzing(on) {
+  document.getElementById('analyzing-state').style.display = on ? 'block' : 'none';
+  document.getElementById('analyze-btn').disabled = on;
+  if (!on) clearInterval(astimer);
+}
+function animSteps() {
+  const steps = ['as1','as2','as3','as4'];
+  let i = 0;
+  steps.forEach(s => document.getElementById(s).classList.remove('on'));
+  document.getElementById('as1').classList.add('on');
+  astimer = setInterval(() => {
+    i++; if (i < steps.length) {
+      steps.forEach(s => document.getElementById(s).classList.remove('on'));
+      document.getElementById(steps[i]).classList.add('on');
+    }
+  }, 550);
+}
+
+// ── SETTINGS ─────────────────────────────────────────────
+function openSet()  { document.getElementById('setpanel').classList.add('on'); }
+function closeSet() { document.getElementById('setpanel').classList.remove('on'); }
+function closeSetOut(e) { if (e.target === document.getElementById('setpanel')) closeSet(); }
+function resetApp() { if (confirm('Redefinir tudo?')) { localStorage.clear(); location.reload(); } }
+
+// ── TOAST ─────────────────────────────────────────────────
+let tt;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('on');
+  clearTimeout(tt); tt = setTimeout(() => el.classList.remove('on'), 2700);
+}
+
+// ── UTILS ─────────────────────────────────────────────────
+function h(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
