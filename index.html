@@ -279,7 +279,7 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--fb);font-size
 <script>
 // ── STATE ──────────────────────────────────────────────────
 const S = {
-  backendUrl: 'https://script.google.com/macros/s/AKfycbyPgjElfMjO5-Vyrw3Ck23ATTaKFHKBprI5adPMt-T0uxIEgO-QTQXmSu4KzlXUljIY9g/exec',
+  backendUrl: 'https://script.google.com/macros/s/AKfycbwnkyHfHB038rAwdd8W93GDDXHgZw3R2o_YinDUqJpH-tqiUoBsffldu7KsgKjognINzQ/exec',
   deviceId: '',
   plan: 'free',
   remaining: 3,
@@ -297,7 +297,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   S.deviceId = getDeviceId();
   const saved = localStorage.getItem('dr_state');
   if (saved) try { Object.assign(S, JSON.parse(saved)); } catch(e) {}
-  S.backendUrl = 'https://script.google.com/macros/s/AKfycbyPgjElfMjO5-Vyrw3Ck23ATTaKFHKBprI5adPMt-T0uxIEgO-QTQXmSu4KzlXUljIY9g/exec';
+  S.backendUrl = 'https://script.google.com/macros/s/AKfycbwnkyHfHB038rAwdd8W93GDDXHgZw3R2o_YinDUqJpH-tqiUoBsffldu7KsgKjognINzQ/exec';
   // Registar sempre — o backend ignora se já existe
   try {
     await api('register', { deviceId: S.deviceId });
@@ -411,8 +411,16 @@ function isAllowedUrl(url) {
 }
 
 function detectCat(url) {
-  const carDomains = ['standvirtual','autosapo','custojusto','custo-justo'];
-  return carDomains.some(d => url.includes(d)) ? 'carro' : 'imovel';
+  const carDomains = ['standvirtual','autosapo','custojusto','custo-justo','uaucar'];
+  if (carDomains.some(d => url.includes(d))) return 'carro';
+  if (url.includes('olx.pt')) {
+    const carKeywords = ['veiculos','carros','motos','trafic','transit','sprinter',
+      'mercedes','bmw','volkswagen','renault','peugeot','citroen','fiat','ford',
+      'opel','seat','toyota','honda','hyundai','kia','audi','volvo','skoda',
+      'nissan','mazda','dacia','jeep','peugeot'];
+    if (carKeywords.some(k => url.toLowerCase().includes(k))) return 'carro';
+  }
+  return 'imovel';
 }
 
 // ── RENDER DEAL ───────────────────────────────────────────
