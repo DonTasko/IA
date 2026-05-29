@@ -2,7 +2,7 @@
   "name": "PromoHunter — DealRadar",
   "short_name": "PromoHunter",
   "description": "Analisa anúncios de imóveis e carros com IA. Descobre se é um bom negócio antes de comprar.",
-  "start_url": "/dealradar.html",
+  "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0a0a0a",
