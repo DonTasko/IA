@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetGuard — Security Posture Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#07071a;--bg2:#0d0d1a;--bg3:#0a0a1f;
+    --border:#1a1a3e;--border2:#2a2a5e;
+    --blue:#7788ff;--green:#00ff88;--red:#ff2244;--yellow:#ffcc00;
+    --text:#ccd;--muted:#556;--mono:'JetBrains Mono',monospace;
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;padding-bottom:60px}
+  input,button{font-family:inherit;outline:none}
+  button{cursor:pointer}
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:#2a2a5a;border-radius:3px}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @keyframes fadein{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .fadein{animation:fadein .4s ease forwards}
+
+  /* HEADER */
+  #topbar{background:var(--bg3);border-bottom:1px solid var(--border);padding:0 24px;position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:16px;height:56px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .brand-name{font-family:var(--mono);font-weight:700;font-size:15px;color:#fff}
+  .badge{font-size:10px;color:#5566aa;background:var(--border);padding:2px 6px;border-radius:4px;letter-spacing:1px}
+  #history-area{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .hist-item{font-size:11px;padding:3px 8px;border-radius:4px;background:var(--border);color:var(--blue);cursor:pointer;border:1px solid var(--border2);display:flex;gap:4px;align-items:center}
+  #btn-settings{background:none;border:1px solid var(--border2);color:var(--blue);border-radius:6px;padding:4px 10px;font-size:13px;margin-left:auto}
+
+  /* SETTINGS */
+  #settings-panel{background:var(--bg3);border-bottom:1px solid var(--border);padding:14px 24px;display:none;gap:12px;align-items:center;flex-wrap:wrap}
+  #settings-panel.open{display:flex}
+  #vt-key{flex:1;max-width:400px;background:var(--bg2);border:1px solid var(--border2);border-radius:6px;padding:6px 12px;color:#aab;font-size:13px;font-family:var(--mono)}
+  .settings-note{font-size:11px;color:#445}
+
+  /* MAIN */
+  #main{max-width:860px;margin:0 auto;padding:32px 16px 0}
+  #hero{text-align:center;margin-bottom:32px}
+  #hero h1{font-family:var(--mono);font-size:28px;font-weight:900;color:#fff;letter-spacing:-1px;margin-bottom:8px}
+  #hero p{color:var(--muted);font-size:13px}
+
+  /* SEARCH */
+  #search-box{display:flex;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;margin-bottom:24px;align-items:center}
+  #domain-input{flex:1;background:none;border:none;color:#eef;font-size:16px;font-family:var(--mono);caret-color:var(--blue)}
+  #domain-input::placeholder{color:#334}
+  #btn-scan{background:linear-gradient(135deg,#0033ff,#0077ff);border:none;border-radius:7px;padding:8px 22px;color:#fff;font-weight:700;font-size:14px;transition:all .2s;box-shadow:0 0 20px #0033ff44}
+  #btn-scan:disabled{background:#1a1a3e;box-shadow:none;opacity:.5;cursor:not-allowed}
+
+  /* STATUS */
+  #status{display:none;align-items:center;gap:10px;padding:12px 18px;background:var(--bg3);border-radius:8px;border:1px solid #1a1a5e;margin-bottom:20px;font-size:13px;color:var(--blue)}
+  #status.show{display:flex}
+  #status-dot{animation:pulse .8s infinite}
+
+  /* RESULTS */
+  #results{display:none}
+  #results.show{display:block}
+
+  /* SCORE CARD */
+  #score-card{background:var(--bg2);border-radius:12px;padding:24px;margin-bottom:16px;display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+  #score-ring-wrap{position:relative;width:140px;height:140px;flex-shrink:0}
+  #score-ring-wrap svg{position:absolute;inset:0}
+  #score-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  #score-grade{font-size:36px;font-weight:900;font-family:var(--mono);line-height:1}
+  #score-num{font-size:13px;color:#888;margin-top:2px}
+  #score-info{flex:1;min-width:200px}
+  #score-meta{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px}
+  #score-title{font-size:22px;font-weight:900;margin-bottom:4px}
+  #score-desc{font-size:13px;color:#667;line-height:1.6}
+  #score-tags{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .score-tag{font-size:12px;padding:4px 10px;border-radius:6px;background:var(--bg3);font-family:var(--mono);font-weight:700}
+  #btn-pdf{background:none;border:1px solid var(--border2);border-radius:8px;color:var(--blue);padding:10px 16px;font-size:13px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:4px}
+
+  /* SECTION */
+  .section{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px 24px;margin-bottom:16px}
+  .section-title{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .section-title span:first-child{font-size:18px}
+  .section-title .stitle{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:2px}
+
+  /* HEADER ROWS */
+  .hrow{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-radius:6px;margin-bottom:6px;transition:all .2s}
+  .hrow.ok{background:#0a1f12;border:1px solid #00ff8833}
+  .hrow.fail{background:#1f0a0a;border:1px solid #ff224433}
+  .hrow-icon{font-size:16px;margin-top:2px;flex-shrink:0}
+  .hrow.ok .hrow-icon{color:var(--green)}
+  .hrow.fail .hrow-icon{color:var(--red)}
+  .hrow-body{flex:1}
+  .hrow-name{font-family:var(--mono);font-size:13px;font-weight:700}
+  .hrow.ok .hrow-name{color:var(--green)}
+  .hrow.fail .hrow-name{color:#ff6677}
+  .hrow-desc{font-size:11px;color:#666;margin-top:2px}
+  .hrow-val{margin-top:4px;font-size:10px;color:#00cc66;font-family:var(--mono);background:#00ff880d;padding:2px 6px;border-radius:3px;word-break:break-all}
+  .hrow-weight{font-size:11px;color:#555;flex-shrink:0;margin-top:2px}
+
+  /* SSL / VT GRIDS */
+  .info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:8px}
+  .info-card{padding:10px 14px;border-radius:6px;background:#0d0d1a;border:1px solid var(--border)}
+  .info-card-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  .info-card-val{font-size:14px;font-weight:700;margin-top:4px;font-family:var(--mono)}
+
+  /* RECS */
+  .rec{display:flex;gap:10px;padding:10px 14px;border-radius:6px;margin-bottom:8px}
+  .rec.high{background:#fff0f222;border-left:4px solid var(--red)}
+  .rec.med{background:#fffbf022;border-left:4px solid var(--yellow)}
+  .rec.low{background:#f0f4ff11;border-left:4px solid var(--blue)}
+  .rec-title{font-weight:700;font-size:13px}
+  .rec.high .rec-title{color:#ff6677}
+  .rec.med .rec-title{color:var(--yellow)}
+  .rec.low .rec-title{color:var(--blue)}
+  .rec-detail{font-size:11px;color:#666;margin-top:2px}
+
+  /* EMPTY */
+  #empty{text-align:center;padding:60px 20px;color:#334}
+  #empty .empty-icon{font-size:48px;margin-bottom:16px;opacity:.3}
+  #empty .empty-text{font-family:var(--mono);font-size:13px}
+  #empty .empty-sub{font-size:11px;color:#2a2a4a;margin-top:8px}
+
+  /* LEGAL */
+  #legal{margin-top:40px;padding:12px 18px;background:#0a0a15;border:1px solid #1a1a30;border-radius:8px;font-size:11px;color:#445;display:flex;gap:8px;align-items:flex-start}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="brand">
+    <span>🔐</span>
+    <span class="brand-name">NetGuard</span>
+    <span class="badge">v1.0 MVP</span>
+  </div>
+  <div id="history-area"></div>
+  <button id="btn-settings">⚙ Definições</button>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings-panel">
+  <span style="font-size:12px;color:var(--muted);white-space:nowrap">VirusTotal API Key:</span>
+  <input id="vt-key" type="password" placeholder="Opcional — sem chave usa dados demo">
+  <span class="settings-note">Obter em virustotal.com — plano gratuito</span>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="hero">
+    <h1>Security Posture Dashboard</h1>
+    <p>Análise defensiva de headers HTTP &bull; SSL/TLS &bull; Reputação de domínio</p>
+  </div>
+
+  <div id="search-box">
+    <span style="font-size:15px;color:var(--muted)">🌐</span>
+    <input id="domain-input" placeholder="exemplo.banco.pt" autocomplete="off" spellcheck="false">
+    <button id="btn-scan">Analisar →</button>
+  </div>
+
+  <div id="status">
+    <span id="status-dot">⬡</span>
+    <span id="status-text"></span>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results">
+    <!-- Score -->
+    <div id="score-card">
+      <div id="score-ring-wrap">
+        <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="70" cy="70" r="54" fill="none" stroke="#1a1a2e" stroke-width="10"/>
+          <circle id="ring-progress" cx="70" cy="70" r="54" fill="none" stroke-width="10" stroke-linecap="round"
+            stroke-dasharray="0 339.3" transform="rotate(-90 70 70)" style="transition:stroke-dasharray 1s ease"/>
+        </svg>
+        <div id="score-label">
+          <span id="score-grade"></span>
+          <span id="score-num"></span>
+        </div>
+      </div>
+      <div id="score-info">
+        <div id="score-meta"></div>
+        <div id="score-title"></div>
+        <div id="score-desc">Score calculado com base em 7 headers de segurança, validade SSL/TLS e reputação de domínio.</div>
+        <div id="score-tags"></div>
+      </div>
+      <button id="btn-pdf">
+        <span style="font-size:20px">📄</span>
+        <span>Exportar PDF</span>
+      </button>
+    </div>
+
+    <!-- Headers -->
+    <div class="section">
+      <div class="section-title"><span>🛡</span><span class="stitle">Headers de Segurança HTTP</span></div>
+      <div id="headers-list"></div>
+      <div id="headers-note" style="margin-top:8px;font-size:11px;color:#445;font-style:italic"></div>
+    </div>
+
+    <!-- SSL -->
+    <div class="section">
+      <div class="section-title"><span>🔒</span><span class="stitle">SSL / TLS</span></div>
+      <div id="ssl-panel"></div>
+    </div>
+
+    <!-- VT -->
+    <div class="section">
+      <div class="section-title"><span>🦠</span><span class="stitle">Reputação de Domínio</span></div>
+      <div id="vt-panel"></div>
+    </div>
+
+    <!-- Recs -->
+    <div class="section">
+      <div class="section-title"><span>📋</span><span class="stitle">Recomendações</span></div>
+      <div id="recs-list"></div>
+    </div>
+  </div>
+
+  <!-- EMPTY -->
+  <div id="empty">
+    <div class="empty-icon">🔐</div>
+    <div class="empty-text">Insira um domínio para iniciar a análise</div>
+    <div class="empty-sub">Ex: banco.pt · caixa.pt · millenniumbcp.pt</div>
+  </div>
+
+  <div id="legal">
+    <span>⚖️</span>
+    <span>Esta ferramenta realiza apenas análise passiva de informação pública (headers HTTP, SSL, reputação). Não efetua testes ativos de penetração. Utilize exclusivamente em domínios para os quais possui autorização expressa.</span>
+  </div>
+</div>
+
+<script>
+const SECURITY_HEADERS = [
+  {name:"Strict-Transport-Security",key:"strict-transport-security",weight:20,desc:"Força HTTPS em todas as ligações"},
+  {name:"Content-Security-Policy",key:"content-security-policy",weight:25,desc:"Previne XSS e injeção de código"},
+  {name:"X-Frame-Options",key:"x-frame-options",weight:15,desc:"Protege contra clickjacking"},
+  {name:"X-Content-Type-Options",key:"x-content-type-options",weight:10,desc:"Previne MIME sniffing"},
+  {name:"Referrer-Policy",key:"referrer-policy",weight:10,desc:"Controla informação de referrer"},
+  {name:"Permissions-Policy",key:"permissions-policy",weight:10,desc:"Limita acesso a funcionalidades do browser"},
+  {name:"X-XSS-Protection",key:"x-xss-protection",weight:10,desc:"Filtro XSS (legacy)"},
+];
+
+const GRADE_CONFIG = {
+  A:{color:"#00ff88",label:"Excelente"},
+  B:{color:"#88ff00",label:"Bom"},
+  C:{color:"#ffcc00",label:"Razoável"},
+  D:{color:"#ff8800",label:"Fraco"},
+  F:{color:"#ff2244",label:"Crítico"},
+};
+
+let currentResults = null;
+let scanHistory = [];
+
+function grade(score){
+  if(score>=90)return"A";if(score>=75)return"B";if(score>=55)return"C";if(score>=35)return"D";return"F";
+}
+
+function setStatus(msg){
+  const s=document.getElementById("status");
+  const t=document.getElementById("status-text");
+  if(msg){s.classList.add("show");t.textContent=msg;}else{s.classList.remove("show");}
+}
+
+function setScanning(v){
+  document.getElementById("btn-scan").disabled=v;
+  document.getElementById("btn-scan").textContent=v?"A analisar…":"Analisar →";
+}
+
+async function analyzeHeaders(domain){
+  try{
+    const res=await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent("https://"+domain)}`,{signal:AbortSignal.timeout(10000)});
+    const json=await res.json();
+    const raw=json.headers||{};
+    const found={};
+    SECURITY_HEADERS.forEach(h=>{
+      const v=raw[h.key]||raw[h.name.toLowerCase()]||null;
+      if(v)found[h.key]=v;
+    });
+    return{ok:true,data:found};
+  }catch(e){
+    return{ok:false,data:{},error:"Não foi possível analisar headers via CORS proxy. Em produção use um backend próprio."};
+  }
+}
+
+async function analyzeSSL(domain){
+  try{
+    await fetch(`https://api.ssllabs.com/api/v3/analyze?host=${domain}&startNew=on&all=done`);
+    await new Promise(r=>setTimeout(r,5000));
+    const res=await fetch(`https://api.ssllabs.com/api/v3/analyze?host=${domain}&all=done`,{signal:AbortSignal.timeout(15000)});
+    const data=await res.json();
+    if(data.status==="READY"&&data.endpoints?.length){
+      const ep=data.endpoints[0];
+      const cert=data.certs?.[0];
+      const daysLeft=cert?.notAfter?Math.round((cert.notAfter-Date.now())/86400000):null;
+      return{ok:true,data:{valid:ep.statusMessage==="Ready",protocol:ep.details?.protocols?.map(p=>p.name+" "+p.version).join(", ")||"TLS",daysLeft,issuer:cert?.issuerSubject?.match(/O=([^,]+)/)?.[1]||"Desconhecido"}};
+    }
+    return{ok:true,data:{valid:true,protocol:"TLS 1.3",daysLeft:180,issuer:"Let's Encrypt",demo:true}};
+  }catch(e){
+    return{ok:true,data:{valid:true,protocol:"TLS 1.2/1.3",daysLeft:245,issuer:"DigiCert Inc",demo:true}};
+  }
+}
+
+async function analyzeVirusTotal(domain,apiKey){
+  if(!apiKey)return{ok:true,data:{harmless:73,malicious:0,undetected:12,error:"Chave VirusTotal não configurada — dados demonstrativos."}};
+  try{
+    const res=await fetch(`https://www.virustotal.com/api/v3/domains/${domain}`,{headers:{"x-apikey":apiKey},signal:AbortSignal.timeout(10000)});
+    const data=await res.json();
+    const s=data.data?.attributes?.last_analysis_stats||{};
+    return{ok:true,data:{harmless:s.harmless,malicious:s.malicious,undetected:s.undetected}};
+  }catch(e){
+    return{ok:false,data:{error:e.message}};
+  }
+}
+
+function computeScore(hData,sslData,vtData){
+  let score=0;
+  const hMax=SECURITY_HEADERS.reduce((s,h)=>s+h.weight,0);
+  const hGot=SECURITY_HEADERS.filter(h=>hData?.[h.key]).reduce((s,h)=>s+h.weight,0);
+  score+=Math.round((hGot/hMax)*70);
+  if(sslData?.valid)score+=12;
+  if(sslData?.daysLeft>30)score+=8;
+  if(vtData&&vtData.malicious===0)score+=10;
+  else if(vtData?.error)score+=5;
+  return score;
+}
+
+function buildRecs(hData,sslData,vtData){
+  const recs=[];
+  SECURITY_HEADERS.filter(h=>!hData?.[h.key]).forEach(h=>{
+    recs.push({sev:h.weight>=20?"high":"med",title:`Header em falta: ${h.name}`,detail:h.desc});
+  });
+  if(sslData&&!sslData.valid)recs.push({sev:"high",title:"Certificado SSL inválido",detail:"Renovar certificado imediatamente."});
+  if(sslData?.daysLeft!=null&&sslData.daysLeft<30)recs.push({sev:"med",title:"Certificado SSL expira em breve",detail:`Restam ${sslData.daysLeft} dias.`});
+  if(vtData?.malicious>0)recs.push({sev:"high",title:"Domínio sinalizado como malicioso",detail:`${vtData.malicious} motores detetaram ameaças.`});
+  if(!recs.length)recs.push({sev:"low",title:"Sem problemas críticos detetados",detail:"Manter monitorização regular."});
+  return recs;
+}
+
+function renderResults(res){
+  const cfg=GRADE_CONFIG[res.grade];
+  const circ=2*Math.PI*54;
+  const dash=(res.score/100)*circ;
+
+  // Ring
+  const ring=document.getElementById("ring-progress");
+  ring.setAttribute("stroke",cfg.color);
+  ring.style.filter=`drop-shadow(0 0 8px ${cfg.color})`;
+  ring.setAttribute("stroke-dasharray",`${dash} ${circ}`);
+  document.getElementById("score-grade").textContent=res.grade;
+  document.getElementById("score-grade").style.color=cfg.color;
+  document.getElementById("score-num").textContent=`${res.score}/100`;
+  document.getElementById("score-card").style.borderColor=cfg.color+"33";
+
+  document.getElementById("score-meta").textContent=`${res.domain} · ${res.ts}`;
+  document.getElementById("score-title").textContent=cfg.label;
+  document.getElementById("score-title").style.color=cfg.color;
+
+  // Tags
+  const present=SECURITY_HEADERS.filter(h=>res.headers?.data?.[h.key]).length;
+  const sslOk=res.ssl?.data?.valid;
+  const vtOk=(res.vt?.data?.malicious||0)===0;
+  document.getElementById("score-tags").innerHTML=`
+    <span class="score-tag" style="border:1px solid #7788ff44;color:#7788ff">Headers: ${present}/${SECURITY_HEADERS.length}</span>
+    <span class="score-tag" style="border:1px solid ${sslOk?"#00ff8844":"#ff224444"};color:${sslOk?"#00ff88":"#ff6677"}">SSL: ${sslOk?"Válido":"Inválido"}</span>
+    <span class="score-tag" style="border:1px solid ${vtOk?"#00ff8844":"#ff224444"};color:${vtOk?"#00ff88":"#ff6677"}">Reputação: ${vtOk?"Limpo":"Suspeito"}</span>
+  `;
+
+  // Headers list
+  let hHtml="";
+  SECURITY_HEADERS.forEach(h=>{
+    const ok=!!res.headers?.data?.[h.key];
+    const val=res.headers?.data?.[h.key];
+    hHtml+=`<div class="hrow ${ok?"ok":"fail"}">
+      <span class="hrow-icon">${ok?"✓":"✗"}</span>
+      <div class="hrow-body">
+        <div class="hrow-name">${h.name}</div>
+        <div class="hrow-desc">${h.desc}</div>
+        ${ok&&val?`<div class="hrow-val">${val.length>80?val.slice(0,80)+"…":val}</div>`:""}
+      </div>
+      <span class="hrow-weight">peso: ${h.weight}pts</span>
+    </div>`;
+  });
+  document.getElementById("headers-list").innerHTML=hHtml;
+  document.getElementById("headers-note").textContent=res.headers?.error||"";
+
+  // SSL
+  const ssl=res.ssl?.data||{};
+  document.getElementById("ssl-panel").innerHTML=`<div class="info-grid">
+    <div class="info-card"><div class="info-card-label">Válido</div><div class="info-card-val" style="color:${ssl.valid?"#00ff88":"#ff2244"}">${ssl.valid?"Sim":"Não"}</div></div>
+    <div class="info-card"><div class="info-card-label">Protocolo</div><div class="info-card-val" style="font-size:12px">${ssl.protocol||"—"}</div></div>
+    <div class="info-card"><div class="info-card-label">Expira em</div><div class="info-card-val" style="color:${ssl.daysLeft>30?"#00ff88":"#ffcc00"}">${ssl.daysLeft!=null?ssl.daysLeft+" dias":"—"}</div></div>
+    <div class="info-card"><div class="info-card-label">Emissor</div><div class="info-card-val" style="font-size:12px">${ssl.issuer||"—"}</div></div>
+  </div>${ssl.demo?'<div style="margin-top:8px;font-size:11px;color:#445;font-style:italic">ℹ Dados demonstrativos — SSL Labs pode estar em análise</div>':""}`;
+
+  // VT
+  const vt=res.vt?.data||{};
+  const total=(vt.harmless||0)+(vt.malicious||0)+(vt.undetected||0);
+  const pct=total>0?Math.round((vt.harmless/total)*100):0;
+  document.getElementById("vt-panel").innerHTML=`<div class="info-grid">
+    <div class="info-card"><div class="info-card-label">Limpo</div><div class="info-card-val" style="color:#00ff88;font-size:22px">${vt.harmless||0}</div></div>
+    <div class="info-card"><div class="info-card-label">Malicioso</div><div class="info-card-val" style="color:${(vt.malicious||0)>0?"#ff2244":"#00ff88"};font-size:22px">${vt.malicious||0}</div></div>
+    <div class="info-card"><div class="info-card-label">Score</div><div class="info-card-val" style="color:${pct>90?"#00ff88":pct>70?"#ffcc00":"#ff2244"};font-size:22px">${pct}%</div></div>
+    <div class="info-card"><div class="info-card-label">Motores</div><div class="info-card-val" style="color:#888;font-size:22px">${total}</div></div>
+  </div>${vt.error?`<div style="margin-top:8px;font-size:11px;color:#445;font-style:italic">ℹ ${vt.error}</div>`:""}`;
+
+  // Recs
+  let rHtml="";
+  res.recs.forEach(r=>{
+    const icon=r.sev==="high"?"🔴":r.sev==="med"?"🟡":"🔵";
+    rHtml+=`<div class="rec ${r.sev}"><span style="font-size:16px;flex-shrink:0">${icon}</span><div><div class="rec-title">${r.title}</div><div class="rec-detail">${r.detail}</div></div></div>`;
+  });
+  document.getElementById("recs-list").innerHTML=rHtml;
+
+  document.getElementById("results").classList.add("show","fadein");
+  document.getElementById("empty").style.display="none";
+}
+
+function updateHistory(domain,score,g){
+  scanHistory=[{domain,score,grade:g,ts:new Date().toLocaleString("pt-PT")},...scanHistory.slice(0,4)];
+  const area=document.getElementById("history-area");
+  area.innerHTML=scanHistory.map(h=>`
+    <div class="hist-item" onclick="document.getElementById('domain-input').value='${h.domain}'">
+      <span style="color:${GRADE_CONFIG[h.grade].color};font-weight:700">${h.grade}</span>
+      <span style="color:#556">${h.domain}</span>
+    </div>`).join("");
+}
+
+async function runScan(){
+  const domain=document.getElementById("domain-input").value.trim().replace(/^https?:\/\//,"").replace(/\/$/,"");
+  if(!domain)return;
+  const vtKey=document.getElementById("vt-key").value.trim();
+
+  setScanning(true);
+  document.getElementById("results").classList.remove("show");
+
+  setStatus("Analisando headers HTTP…");
+  const headers=await analyzeHeaders(domain);
+
+  setStatus("Verificando SSL/TLS…");
+  const ssl=await analyzeSSL(domain);
+
+  setStatus("Consultando reputação de domínio…");
+  const vt=await analyzeVirusTotal(domain,vtKey);
+
+  const score=computeScore(headers.data,ssl.data,vt.data);
+  const g=grade(score);
+  const recs=buildRecs(headers.data,ssl.data,vt.data);
+
+  currentResults={domain,score,grade:g,headers,ssl,vt,recs,ts:new Date().toLocaleString("pt-PT")};
+  renderResults(currentResults);
+  updateHistory(domain,score,g);
+  setStatus("");
+  setScanning(false);
+}
+
+// PDF export
+document.getElementById("btn-pdf").addEventListener("click",()=>{
+  if(!currentResults)return;
+  const r=currentResults;
+  const cfg=GRADE_CONFIG[r.grade];
+  const presentH=SECURITY_HEADERS.filter(h=>r.headers?.data?.[h.key]);
+  const missingH=SECURITY_HEADERS.filter(h=>!r.headers?.data?.[h.key]);
+  const ssl=r.ssl?.data||{};
+  const vt=r.vt?.data||{};
+  const total=(vt.harmless||0)+(vt.malicious||0)+(vt.undetected||0);
+
+  const win=window.open("","_blank");
+  win.document.write(`<!DOCTYPE html><html><head>
+  <meta charset="UTF-8"><title>Relatório — ${r.domain}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Inter',sans-serif;background:#fff;color:#111;padding:40px;max-width:800px;margin:0 auto}
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0011aa;padding-bottom:20px;margin-bottom:30px}
+    .brand{font-size:22px;font-weight:700;color:#0011aa}
+    .meta{text-align:right;font-size:12px;color:#666}
+    .score-box{display:flex;align-items:center;gap:20px;background:#f5f7ff;border-radius:10px;padding:20px 28px;margin-bottom:24px;border-left:6px solid ${cfg.color}}
+    .grade{font-size:56px;font-weight:900;color:${cfg.color};font-family:'JetBrains Mono',monospace;line-height:1}
+    .sec{margin-bottom:28px}
+    .sec-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#0011aa;border-bottom:1px solid #e0e4ff;padding-bottom:8px;margin-bottom:14px}
+    .row{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0f0f0}
+    .ok{color:#00aa55}.fail{color:#cc1133}
+    .hname{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700}
+    .hdesc{font-size:11px;color:#888}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .card{background:#f8f9fc;border-radius:6px;padding:12px 16px;border:1px solid #e8eaf0}
+    .card-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#999}
+    .card-val{font-size:18px;font-weight:700;margin-top:4px;font-family:'JetBrains Mono',monospace}
+    .rec{display:flex;gap:10px;padding:10px 14px;border-radius:6px;margin-bottom:8px}
+    .rec.high{background:#fff0f2;border-left:4px solid #cc1133}
+    .rec.med{background:#fffbf0;border-left:4px solid #cc8800}
+    .rec.low{background:#f0f4ff;border-left:4px solid #0044cc}
+    .rt{font-weight:700;font-size:13px}.rd{font-size:11px;color:#666;margin-top:2px}
+    .footer{margin-top:40px;padding-top:16px;border-top:1px solid #e0e0e0;font-size:11px;color:#aaa;display:flex;justify-content:space-between}
+    @media print{body{padding:20px}}
+  </style></head><body>
+  <div class="hdr">
+    <div><div class="brand">🔐 NetGuard Security</div><div style="font-size:13px;color:#555;margin-top:4px">Relatório de Postura de Segurança</div></div>
+    <div class="meta"><div style="font-weight:700;font-size:15px">${r.domain}</div><div>Gerado em ${r.ts}</div><div style="margin-top:4px;padding:2px 8px;background:#fff3cd;border-radius:4px;display:inline-block;font-size:10px">CONFIDENCIAL</div></div>
+  </div>
+  <div class="score-box">
+    <div class="grade">${r.grade}</div>
+    <div><h1 style="font-size:22px">Score de Segurança: ${r.score}/100</h1><p style="color:#555;font-size:13px;margin-top:4px">${cfg.label} — Headers HTTP, SSL/TLS e reputação de domínio</p></div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Headers de Segurança HTTP</div>
+    ${presentH.map(h=>`<div class="row"><span class="ok" style="width:18px">✓</span><div><div class="hname ok">${h.name}</div><div class="hdesc">${h.desc}</div></div><span style="margin-left:auto;font-size:10px;color:#aaa">${h.weight}pts</span></div>`).join("")}
+    ${missingH.map(h=>`<div class="row"><span class="fail" style="width:18px">✗</span><div><div class="hname fail">${h.name}</div><div class="hdesc">${h.desc}</div></div><span style="margin-left:auto;font-size:10px;color:#aaa">-${h.weight}pts</span></div>`).join("")}
+  </div>
+  <div class="sec">
+    <div class="sec-title">SSL / TLS</div>
+    <div class="grid">
+      <div class="card"><div class="card-label">Certificado Válido</div><div class="card-val" style="color:${ssl.valid?"#00aa55":"#cc1133"}">${ssl.valid?"Sim":"Não"}</div></div>
+      <div class="card"><div class="card-label">Protocolo</div><div class="card-val" style="font-size:14px">${ssl.protocol||"—"}</div></div>
+      <div class="card"><div class="card-label">Expira em</div><div class="card-val">${ssl.daysLeft!=null?ssl.daysLeft+" dias":"—"}</div></div>
+      <div class="card"><div class="card-label">Emissor</div><div class="card-val" style="font-size:13px">${ssl.issuer||"—"}</div></div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Reputação de Domínio (VirusTotal)</div>
+    <div class="grid">
+      <div class="card"><div class="card-label">Motores Limpos</div><div class="card-val" style="color:#00aa55">${vt.harmless||0}</div></div>
+      <div class="card"><div class="card-label">Maliciosos</div><div class="card-val" style="color:${(vt.malicious||0)>0?"#cc1133":"#00aa55"}">${vt.malicious||0}</div></div>
+      <div class="card"><div class="card-label">Motores Total</div><div class="card-val">${total}</div></div>
+      <div class="card"><div class="card-label">Score Limpeza</div><div class="card-val">${total>0?Math.round((vt.harmless/total)*100):0}%</div></div>
+    </div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Recomendações</div>
+    ${r.recs.map(rec=>`<div class="rec ${rec.sev}"><div><div class="rt">${rec.title}</div><div class="rd">${rec.detail}</div></div></div>`).join("")}
+  </div>
+  <div class="footer"><span>NetGuard Security Dashboard — MVP v1.0</span><span>Relatório confidencial — uso exclusivo do cliente autorizado.</span></div>
+  </body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(),800);
+});
+
+// Settings toggle
+document.getElementById("btn-settings").addEventListener("click",()=>{
+  document.getElementById("settings-panel").classList.toggle("open");
+});
+
+// Scan button & Enter
+document.getElementById("btn-scan").addEventListener("click",runScan);
+document.getElementById("domain-input").addEventListener("keydown",e=>{if(e.key==="Enter")runScan();});
+</script>
+</body>
+</html>
